@@ -3,6 +3,7 @@
 
 #define PACK(kbd,row,column) (kbd*100+row*10+column)
 #define UNPACK(packed) Loc(packed/100,(packed%100)/10,packed%10)
+#define HOLD_TIME 30
 
 byte rows[] = { 8, 7, 6, 5, 4};
 const int rowCount = sizeof(rows)/sizeof(rows[0]);
@@ -246,12 +247,24 @@ Key keyboard[CountLayer][2][rowCount][columnCount] = {
 
 int layer = Layer0;
 
+// TODO: make sure the scenario where the queue overrides insetlf pysically impossible (if you press a hold key and mash the others very fast)
+#define QUEUE_SIZE 100 
+unsigned int queue_index = 0; //TODO: take care of overflow inside PressedKey
+unsigned int queue_last = 0; 
+byte press_queue[QUEUE_SIZE];
+
+unsigned int addToPressQueue(byte packedLoc){
+  press_queue[queue_last%QUEUE_SIZE] = packedLoc;
+
+  return queue_last++;
+}
+
 struct PressedKey{
   byte timePressed; // in x*10ms
   byte data;
+  unsigned int qindex;
 #define DATA_LAYER_SPACE 3
 #define DATA_PRESSED_SPACE 4
-#define DATA_HOLD_SPACE 5
 
   PressedKey():data(0),timePressed(0){
 
@@ -263,22 +276,21 @@ struct PressedKey{
   bool isPressed(){
     return data & 1<<DATA_PRESSED_SPACE;
   }
-  bool hasHold(){
-    return data & 1<<DATA_HOLD_SPACE;
-  }
-  void setData(byte layer,bool has_hold,bool pressed){
+  void setData(byte layer,bool pressed){
     data = layer & ((2<<DATA_LAYER_SPACE) - 1);
     data += pressed ? 1<<DATA_PRESSED_SPACE: 0;
-    data += has_hold ? 1<<DATA_HOLD_SPACE: 0;
   }
 
-  void press(byte layer, bool has_hold){
-    setData(layer,has_hold,true);
+  void press(byte layer,  unsigned int qi){
+    setData(layer,true);
+    qindex = qi;
   }
   byte release(){
+
     byte layer = getLayer();
-    setData(0,0,0);
+    setData(0,0);
     timePressed = 0;
+    qindex = 0;
     return layer;
   }
   void addTime(){
@@ -306,31 +318,25 @@ PressedKey pressedKeys[2][rowCount][columnCount] = {
     },
 };
 
+byte current_layer = Layer0;
 
 
-void processKeyEvent(byte packedLoc,bool pressed){
+void pressKey(byte packedLoc, bool hold){
   Loc loc = UNPACK(packedLoc);
-  Serial.print("packed:");
+  Serial.print("Press -> packed:");
   Serial.print(packedLoc);
+  Serial.print(", hold:");
+  Serial.print(hold);
   Serial.print(", Loc.kbd:");
   Serial.print(loc.kbd);
   Serial.print(", Loc.row:");
   Serial.print(loc.row);
   Serial.print(", Loc.column:");
   Serial.print(loc.column);
-  if(pressed){
-    Serial.print(", p -> ");
-  }
-  else{
-    Serial.print(", r -> ");
-  }
 
-
-  Key *key = &keyboard[0][loc.kbd][loc.row][loc.column];
+  Key *key = &keyboard[current_layer][loc.kbd][loc.row][loc.column];
   
   Serial.print(key->mode);
-  Serial.print(": ");
-  Serial.print(pressedKeys[loc.kbd][loc.row][loc.column].timePressed);
   Serial.print(": ");
 
   if(key->mode == ModeNone){
@@ -360,57 +366,178 @@ void processKeyEvent(byte packedLoc,bool pressed){
     Serial.print(", hold: ");
     printKeycode(key->mod.keycode);
   }
+  Serial.println();
+}
+void releaseKey(byte packedLoc, bool hold){
+  Loc loc = UNPACK(packedLoc);
+  Serial.print("Release -> packed:");
+  Serial.print(packedLoc);
+  Serial.print(", hold:");
+  Serial.print(hold);
+  Serial.print(", Loc.kbd:");
+  Serial.print(loc.kbd);
+  Serial.print(", Loc.row:");
+  Serial.print(loc.row);
+  Serial.print(", Loc.column:");
+  Serial.print(loc.column);
 
-  bool has_hold = key->mode == ModeLayerMod || key->mode == ModeKeyLayer || key->mode == ModeKeyMod;
-  Serial.print(" ");
-  Serial.print(has_hold);
+  Key *key = &keyboard[current_layer][loc.kbd][loc.row][loc.column];
+  
+  Serial.print(key->mode);
+  Serial.print(": ");
 
-  Serial.println();          // new line for readability
+  if(key->mode == ModeNone){
+    Serial.print("None");
+  }
+  else if(key->mode == ModeKey){
+    printKeycode(key->keycode);
+  }
+  else if(key->mode == ModeKeyMod){
+    printKeycode(key->keycode);
+    Serial.print(", hold: ");
+    printKeycode(key->mod.keycode);
+  }
+  else if(key->mode == ModeMod){
+    printKeycode(key->mod.keycode);
+  }
+  else if(key->mode == ModeKeyLayer){
+    printKeycode(key->keycode);
+    Serial.print(", hold: ");
+    printLayer(key->layer.layer);
+  }
+  else if(key->mode == ModeLayer){
+    printLayer(key->layer.layer);
+  }
+  else if(key->mode == ModeLayerMod){
+    printLayer(key->layer.layer);
+    Serial.print(", hold: ");
+    printKeycode(key->mod.keycode);
+  }
+  Serial.println();
+}
 
+inline bool processPressCurrent(){
+  byte i = queue_index % QUEUE_SIZE;
+  byte packedLoc = press_queue[i];
+  Loc loc = UNPACK(packedLoc);
+  PressedKey* pkey = &pressedKeys[loc.kbd][loc.row][loc.column];
+  Key* key = &keyboard[current_layer][loc.kbd][loc.row][loc.column];
+  if(pkey->qindex!=queue_index){
+    // already released
+    pressKey(packedLoc, false);
+    releaseKey(packedLoc, false);
+    return true;
+  }
+
+  bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod;
+  
+  if(has_hold){
+    if(pkey->timePressed>=HOLD_TIME){
+      pressKey(packedLoc,true);
+      return true;
+    }
+  }
+  else{
+    pressKey(packedLoc,false);
+    return true;
+  }
+
+  return false;
+}
+
+void processPressQueue(){
+  while(queue_index<queue_last){ //TODO: see if adding a small delay would be better (if the Keybaord breaks if i just spam?)
+    if(!processPressCurrent()){
+      break;
+    }
+    queue_index++;
+  }
+}
+
+
+
+
+
+
+void processKeyEvent(byte packedLoc,bool pressed){
+  //
+  // if(pressed){
+  //   Serial.print(", p -> ");
+  // }
+  // else{
+  //   Serial.print(", r -> ");
+  // }
+  //
+  //
+  // 
+  // Serial.print(key->mode);
+  // Serial.print(": ");
+  // Serial.print(pressedKeys[loc.kbd][loc.row][loc.column].timePressed);
+  // Serial.print(": ");
+  //
+  // if(key->mode == ModeNone){
+  //   Serial.print("None");
+  // }
+  // else if(key->mode == ModeKey){
+  //   printKeycode(key->keycode);
+  // }
+  // else if(key->mode == ModeKeyMod){
+  //   printKeycode(key->keycode);
+  //   Serial.print(", hold: ");
+  //   printKeycode(key->mod.keycode);
+  // }
+  // else if(key->mode == ModeMod){
+  //   printKeycode(key->mod.keycode);
+  // }
+  // else if(key->mode == ModeKeyLayer){
+  //   printKeycode(key->keycode);
+  //   Serial.print(", hold: ");
+  //   printLayer(key->layer.layer);
+  // }
+  // else if(key->mode == ModeLayer){
+  //   printLayer(key->layer.layer);
+  // }
+  // else if(key->mode == ModeLayerMod){
+  //   printLayer(key->layer.layer);
+  //   Serial.print(", hold: ");
+  //   printKeycode(key->mod.keycode);
+  // }
+  //
+  // Serial.print(" ");
+  // Serial.print(has_hold);
+  //
+  // Serial.println();          // new line for readability
+
+  Loc loc = UNPACK(packedLoc);
 
   PressedKey* keyp = &pressedKeys[loc.kbd][loc.row][loc.column];
 
   if(pressed){
-    keyp->press(0,has_hold);
-    Serial.print("Press \"");
-    printKeycode(key->keycode);
-    Serial.println("\"");
-    // Keyboard.press(keyboard[kbd][row][column]);
+    Serial.print("Press ");
+    Serial.print(packedLoc);
+    Serial.println("");
+
+    unsigned int qi = addToPressQueue(packedLoc);
+    keyp->press(0,qi);
   }
   else{
-    keyp->release();
     Serial.print("Release \"");
-    printKeycode(key->keycode);
+    Serial.print(packedLoc);
     Serial.println("\"");
-    // Keyboard.release(keyboard[kbd][row][column]);
-  }
 
-  if(key->mode == ModeNone){
+    // if already processed by pressQueue release key
+    if(keyp->qindex < queue_index){
+      // how can i know if this was a hold?
+      Key* key = &keyboard[current_layer][loc.kbd][loc.row][loc.column];
+      bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod;
+      releaseKey(packedLoc, has_hold);
+    }
+    keyp->release();
   }
-  else if(key->mode == ModeKey){
-  }
-  else if(key->mode == ModeKeyMod){
-  }
-  else if(key->mode == ModeMod){
-  }
-  else if(key->mode == ModeKeyLayer){
-  }
-  else if(key->mode == ModeLayer){
-  }
-  else if(key->mode == ModeLayerMod){
-  }
-
-  // if(pressed){
-  //   Keyboard.press(keyboard[kbd][row][column]);
-  // }
-  // else{
-  //   Keyboard.release(keyboard[kbd][row][column]);
-  // }
-
 }
 
 #define DELAY 10
-#define HOLD_TIME 30
+
 
 void updatePressed(){
   for(int i=0;i<2;++i){
@@ -419,19 +546,10 @@ void updatePressed(){
         PressedKey *pkey = &pressedKeys[i][j][k];
         if(pkey->isPressed()){
           pkey->addTime();
-
-          if(pkey->timePressed == HOLD_TIME){
-            Serial.print("Holding: ");
-            Serial.println(PACK(i,j,k));
-            if(pkey->hasHold()){
-              Serial.println("Activate hold");
-            }
-          }
         }
       }
     }
   }
-
 }
 
 void loop()
@@ -439,4 +557,6 @@ void loop()
   readMatrix();
   delay(DELAY);
   updatePressed();
+  processPressQueue();
+
 }
