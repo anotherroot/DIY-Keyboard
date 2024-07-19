@@ -8,7 +8,6 @@
 byte rows[] = { 8, 7, 6, 5, 4};
 const int rowCount = sizeof(rows)/sizeof(rows[0]);
 
-// byte columns[] = {9,10,16,14,15};
 byte columns[] = { 15, 14, 16, 10, 9, };
 const int columnCount = sizeof(columns)/sizeof(columns[0]);
 
@@ -249,7 +248,7 @@ int layer = Layer0;
 
 // TODO: make sure the scenario where the queue overrides insetlf pysically impossible (if you press a hold key and mash the others very fast)
 #define QUEUE_SIZE 100 
-unsigned int queue_index = 0; //TODO: take care of overflow inside PressedKey
+unsigned int queue_index = 0; 
 unsigned int queue_last = 0; 
 byte press_queue[QUEUE_SIZE];
 
@@ -257,6 +256,11 @@ unsigned int addToPressQueue(byte packedLoc){
   press_queue[queue_last%QUEUE_SIZE] = packedLoc;
 
   return queue_last++;
+}
+inline void resetQueue(){
+  queue_index = 0;
+  queue_last = 0;
+  Serial.println("ResetQueue");
 }
 
 struct PressedKey{
@@ -540,15 +544,21 @@ void processKeyEvent(byte packedLoc,bool pressed){
 
 
 void updatePressed(){
+  bool is_pressed = false;
   for(int i=0;i<2;++i){
     for(int j=0;j<rowCount;++j){
       for(int k=0;k<columnCount;++k){
         PressedKey *pkey = &pressedKeys[i][j][k];
         if(pkey->isPressed()){
           pkey->addTime();
+          is_pressed = true;
         }
       }
     }
+  }
+
+  if(!is_pressed&&queue_last>0&&queue_index==queue_last){
+    resetQueue();
   }
 }
 
