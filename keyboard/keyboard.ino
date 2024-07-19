@@ -248,8 +248,8 @@ int layer = Layer0;
 
 // TODO: make sure the scenario where the queue overrides insetlf pysically impossible (if you press a hold key and mash the others very fast)
 #define QUEUE_SIZE 100 
-unsigned int queue_index = 0; 
-unsigned int queue_last = 0; 
+unsigned int queue_index = 1; 
+unsigned int queue_last = 1; //TODO: you can probably reduce this to a short (you would have to presse 64 thousand keys without a single break to break it). maybe even byte
 byte press_queue[QUEUE_SIZE];
 
 unsigned int addToPressQueue(byte packedLoc){
@@ -258,8 +258,8 @@ unsigned int addToPressQueue(byte packedLoc){
   return queue_last++;
 }
 inline void resetQueue(){
-  queue_index = 0;
-  queue_last = 0;
+  queue_index = 1;
+  queue_last = 1;
   Serial.println("ResetQueue");
 }
 
@@ -297,9 +297,16 @@ struct PressedKey{
     qindex = 0;
     return layer;
   }
-  void addTime(){
-    byte ismax = 255==timePressed;
-    timePressed=(1-ismax)*(timePressed+1) + ismax*(255);
+  void addTime(unsigned long delta){
+
+    unsigned long d = delta/10;
+
+    if(d+timePressed>=255){
+      timePressed = 255;
+    }
+    else{
+      timePressed += d;
+    }
   }
 };
 
@@ -464,53 +471,6 @@ void processPressQueue(){
 
 
 void processKeyEvent(byte packedLoc,bool pressed){
-  //
-  // if(pressed){
-  //   Serial.print(", p -> ");
-  // }
-  // else{
-  //   Serial.print(", r -> ");
-  // }
-  //
-  //
-  // 
-  // Serial.print(key->mode);
-  // Serial.print(": ");
-  // Serial.print(pressedKeys[loc.kbd][loc.row][loc.column].timePressed);
-  // Serial.print(": ");
-  //
-  // if(key->mode == ModeNone){
-  //   Serial.print("None");
-  // }
-  // else if(key->mode == ModeKey){
-  //   printKeycode(key->keycode);
-  // }
-  // else if(key->mode == ModeKeyMod){
-  //   printKeycode(key->keycode);
-  //   Serial.print(", hold: ");
-  //   printKeycode(key->mod.keycode);
-  // }
-  // else if(key->mode == ModeMod){
-  //   printKeycode(key->mod.keycode);
-  // }
-  // else if(key->mode == ModeKeyLayer){
-  //   printKeycode(key->keycode);
-  //   Serial.print(", hold: ");
-  //   printLayer(key->layer.layer);
-  // }
-  // else if(key->mode == ModeLayer){
-  //   printLayer(key->layer.layer);
-  // }
-  // else if(key->mode == ModeLayerMod){
-  //   printLayer(key->layer.layer);
-  //   Serial.print(", hold: ");
-  //   printKeycode(key->mod.keycode);
-  // }
-  //
-  // Serial.print(" ");
-  // Serial.print(has_hold);
-  //
-  // Serial.println();          // new line for readability
 
   Loc loc = UNPACK(packedLoc);
 
@@ -543,21 +503,27 @@ void processKeyEvent(byte packedLoc,bool pressed){
 #define DELAY 10
 
 
+unsigned long last_millis=0;
 void updatePressed(){
+
+  unsigned long new_millis = millis();
+  unsigned long delta = new_millis - last_millis;
+  last_millis = new_millis;
+
   bool is_pressed = false;
   for(int i=0;i<2;++i){
     for(int j=0;j<rowCount;++j){
       for(int k=0;k<columnCount;++k){
         PressedKey *pkey = &pressedKeys[i][j][k];
         if(pkey->isPressed()){
-          pkey->addTime();
+          pkey->addTime(delta);
           is_pressed = true;
         }
       }
     }
   }
 
-  if(!is_pressed&&queue_last>0&&queue_index==queue_last){
+  if(!is_pressed&&queue_last>1&&queue_index==queue_last){
     resetQueue();
   }
 }
