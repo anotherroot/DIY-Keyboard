@@ -372,10 +372,16 @@ void processKeyEvent(byte packedLoc,bool pressed){
 
   if(pressed){
     keyp->press(0,has_hold);
+    Serial.print("Press \"");
+    printKeycode(key->keycode);
+    Serial.println("\"");
     // Keyboard.press(keyboard[kbd][row][column]);
   }
   else{
     keyp->release();
+    Serial.print("Release \"");
+    printKeycode(key->keycode);
+    Serial.println("\"");
     // Keyboard.release(keyboard[kbd][row][column]);
   }
 
