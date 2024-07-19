@@ -330,6 +330,7 @@ PressedKey pressedKeys[2][rowCount][columnCount] = {
 };
 
 byte current_layer = Layer0;
+byte prev_layer = Layer0;
 
 
 void pressKey(byte packedLoc, bool hold){
@@ -355,27 +356,53 @@ void pressKey(byte packedLoc, bool hold){
   }
   else if(key->mode == ModeKey){
     printKeycode(key->keycode);
+
+    Keyboard.press(key->keycode);
   }
   else if(key->mode == ModeKeyMod){
     printKeycode(key->keycode);
     Serial.print(", hold: ");
     printKeycode(key->mod.keycode);
+
+    if(hold){
+      Keyboard.press(key->mod.keycode);
+    }else{
+      Keyboard.press(key->keycode);
+    }
   }
   else if(key->mode == ModeMod){
     printKeycode(key->mod.keycode);
+
+    Keyboard.press(key->mod.keycode);
   }
   else if(key->mode == ModeKeyLayer){
     printKeycode(key->keycode);
     Serial.print(", hold: ");
     printLayer(key->layer.layer);
+
+    if(hold){
+      prev_layer = current_layer;
+      current_layer = key->layer.layer;
+    }else{
+      Keyboard.press(key->keycode);
+    }
   }
   else if(key->mode == ModeLayer){
     printLayer(key->layer.layer);
+
+    current_layer = key->layer.layer;
   }
   else if(key->mode == ModeLayerMod){
     printLayer(key->layer.layer);
     Serial.print(", hold: ");
     printKeycode(key->mod.keycode);
+
+    if(hold){
+      Keyboard.press(key->mod.keycode);
+    }else{
+      prev_layer = current_layer;
+      current_layer = key->layer.layer;
+    }
   }
   Serial.println();
 }
@@ -402,19 +429,35 @@ void releaseKey(byte packedLoc, bool hold){
   }
   else if(key->mode == ModeKey){
     printKeycode(key->keycode);
+
+    Keyboard.release(key->keycode);
   }
   else if(key->mode == ModeKeyMod){
     printKeycode(key->keycode);
     Serial.print(", hold: ");
     printKeycode(key->mod.keycode);
+
+    if(hold){
+      Keyboard.release(key->mod.keycode);
+    }else{
+      Keyboard.release(key->keycode);
+    }
   }
   else if(key->mode == ModeMod){
     printKeycode(key->mod.keycode);
+
+    Keyboard.release(key->mod.keycode);
   }
   else if(key->mode == ModeKeyLayer){
     printKeycode(key->keycode);
     Serial.print(", hold: ");
     printLayer(key->layer.layer);
+
+    if(hold){
+      current_layer = prev_layer;
+    }else{
+      Keyboard.release(key->keycode);
+    }
   }
   else if(key->mode == ModeLayer){
     printLayer(key->layer.layer);
@@ -423,6 +466,9 @@ void releaseKey(byte packedLoc, bool hold){
     printLayer(key->layer.layer);
     Serial.print(", hold: ");
     printKeycode(key->mod.keycode);
+    if(hold){
+      Keyboard.release(key->mod.keycode);
+    }
   }
   Serial.println();
 }
