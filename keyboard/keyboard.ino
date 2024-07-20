@@ -179,6 +179,28 @@ void printKeycode(byte keycode){
     case KEY_RETURN: { Serial.print("Enter"); } break;
     case KEY_TAB: { Serial.print("Tab"); } break;
     case KEY_ESC: { Serial.print("Esc"); } break;
+    case KEY_BACKSPACE: { Serial.print("Backspace"); } break;
+    case KEY_DELETE: { Serial.print("Delete"); } break;
+    case KEY_HOME: { Serial.print("Home"); } break;
+    case KEY_END: { Serial.print("End"); } break;
+    case KEY_PAGE_UP: { Serial.print("Page Up"); } break;
+    case KEY_PAGE_DOWN: { Serial.print("Page Down"); } break;
+    case KEY_UP_ARROW: { Serial.print("Up"); } break;
+    case KEY_DOWN_ARROW: { Serial.print("Down"); } break;
+    case KEY_LEFT_ARROW: { Serial.print("Left"); } break;
+    case KEY_RIGHT_ARROW: { Serial.print("Right"); } break;
+    case KEY_F1: { Serial.print("F1"); } break;
+    case KEY_F2: { Serial.print("F2"); } break;
+    case KEY_F3: { Serial.print("F3"); } break;
+    case KEY_F4: { Serial.print("F4"); } break;
+    case KEY_F5: { Serial.print("F5"); } break;
+    case KEY_F6: { Serial.print("F6"); } break;
+    case KEY_F7: { Serial.print("F7"); } break;
+    case KEY_F8: { Serial.print("F8"); } break;
+    case KEY_F9: { Serial.print("F9"); } break;
+    case KEY_F10: { Serial.print("F10"); } break;
+    case KEY_F11: { Serial.print("F11"); } break;
+    case KEY_F12: { Serial.print("F12"); } break;
     default: { Serial.print("None"); } break;
   }
 }
@@ -195,51 +217,51 @@ void printLayer(byte layer){
 
 Key keyboard[CountLayer][2][rowCount][columnCount] = {
   {
-    {
-      {K('t'),       K('r'),      K(KEY_TAB),   K(KEY_ESC,M(KEY_RIGHT_CTRL)),    K('i')},
-      {K(Layer2),       K('g'),      K('e'),     K('w'),      K('q')},
-      {K(' '),   K('f'),      K('d'),     K('s'),      K('a')},
-      {K(KEY_LEFT_CTRL),    K('i'),      K('i'),     K('i'),      K(KEY_RIGHT_GUI)},
-      {K(KEY_LEFT_ALT),     K(KEY_LEFT_SHIFT),  K('i'),     K('i'),      K('i')},
+    {// normal characters
+      {K('t'),       K('r'),      K(KEY_TAB),   K('q'),    K(0)},
+      {K(' '),       K('g'),      K('e'),     K('w'),      K('a')},
+      {K(' ',L(Layer1)),   K('f'),      K('d'),     K('s'),      K(KEY_ESC,L(Layer2))},
+      {K('.',M(KEY_LEFT_GUI)),    K('v'),      K('c'),     K('x'),      K('z')},
+      {K('/',M(KEY_LEFT_SHIFT)),     K(',',M(KEY_LEFT_ALT)),  K(0),     K(0),      K(0)},
     },
     {
-      {K('y'),     K('u'),      K(KEY_TAB),   K(KEY_ESC),    K('p')},
-      {K(Layer1),     K('h'),      K('i'),     K('o'),      K(';')},
-      {K(KEY_RETURN), K('j'),      K('k'),     K('l'),      K('a')},
-      {K(KEY_RIGHT_CTRL),  K(),      K(),     K(),      K(KEY_RIGHT_GUI)},
-      {K(KEY_RIGHT_ALT),   K(KEY_RIGHT_SHIFT),  K(),     K(),      K()},
+      {K('y'),     K('u'),      K(L(Layer1)),   K(L(Layer0)),    K(0)},
+      {K(KEY_RETURN),     K('h'),      K('i'),     K('o'),      K('p')},
+      {K(KEY_RETURN,L(Layer1)), K('j'),      K('k'),     K('l'),      K(';',L(Layer2))},
+      {K('[',M(KEY_RIGHT_CTRL)),  K('b'),      K('n'),     K('m'),      K('\'')},
+      {K('\\',M(KEY_RIGHT_ALT)),   K(']',M(KEY_RIGHT_SHIFT)),  K(0),     K(0),      K(0)},
+    },
+  },
+  { // 
+    {
+      {K('='),       K('3'),      K('2'),   K('1'),    K(0)},
+      {K(),       K('6'),      K('5'),     K('4'),      K('`')},
+      {K(' ',L(Layer1)),   K('9'),      K('8'),     K('7'),      K()},
+      {K('.',M(KEY_LEFT_GUI)),    K('+'),      K('0'),     K('-'),      K()},
+      {K('/',M(KEY_LEFT_SHIFT)),     K(',',M(KEY_LEFT_ALT)),  K(0),     K(0),      K(0)},
+    },
+    {
+      {K('_'),       K('!'),      K(L(Layer2)),   K(L(Layer0)),    K(0)},
+      {K(),       K('$'),      K('@'),     K('#'),      K('~')},
+      {K(KEY_RETURN,L(Layer1)),    K('&'),      K('%'),     K('^'),      K()},
+      {K('[',M(KEY_RIGHT_CTRL)),    K('*'),      K('('),     K(')'),      K()},
+      {K('\\',M(KEY_RIGHT_ALT)),   K(']',M(KEY_RIGHT_SHIFT)),  K(0),     K(0),      K(0)},
     },
   },
   {
     {
-      {K(),       K(),      K(),   K(),    K()},
-      {K(Layer0),       K(),      K(),     K(),      K()},
-      {K(),   K(),      K(),     K(),      K()},
-      {K(),    K(),      K(),     K(),      K()},
-      {K(),     K(),  K(),     K(),      K()},
+      {K(),       K(KEY_F3),      K(KEY_F2),   K(KEY_F1),    K(0)},
+      {K(),       K(KEY_F6),      K(KEY_F5),     K(KEY_F4),      K()},
+      {K(KEY_BACKSPACE),   K(KEY_F9),      K(KEY_F8),     K(KEY_F7),      K()},
+      {K(KEY_END),    K(KEY_F12),      K(KEY_F11),     K(KEY_F10),      K()},
+      {K(KEY_HOME),     K(),  K(0),     K(0),      K(0)},
     },
     {
-      {K(),     K(),      K(),   K(),    K()},
-      {K( Layer2),     K(),      K(),     K(),      K()},
-      {K(), K(),      K(),     K(),      K()},
-      {K(),  K(),      K(),     K(),      K()},
-      {K(),   K(),  K(),     K(),      K()},
-    },
-  },
-  {
-    {
-      {K(),       K(),      K(),   K(),    K()},
-      {K(Layer1),       K(),      K(),     K(),      K()},
-      {K(),   K(),      K(),     K(),      K()},
-      {K(),    K(),      K(),     K(),      K()},
-      {K(),     K(),  K(),     K(),      K()},
-    },
-    {
-      {K(),     K(),      K(),   K(),    K()},
-      {K(Layer0),     K(),      K(),     K(),      K()},
-      {K(), K(),      K(),     K(),      K()},
-      {K(),  K(),      K(),     K(),      K()},
-      {K(),   K(),  K(),     K(),      K()},
+      {K(),       K(),      K(L(Layer2)),   K(L(Layer0)),    K(0)},
+      {K(),       K(KEY_LEFT_ARROW),      K(KEY_UP_ARROW),     K(KEY_RIGHT_ARROW),      K()},
+      {K(KEY_DELETE),   K(),      K(KEY_DOWN_ARROW),     K(),      K()},
+      {K(KEY_PAGE_DOWN),    K(),      K(),     K(),      K()},
+      {K(KEY_PAGE_UP),     K(),  K(0),     K(0),      K(0)},
     },
   }
 };
