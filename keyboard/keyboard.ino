@@ -13,7 +13,7 @@
 
 #define PACK(kbd,row,column) (kbd*100+row*10+column)
 #define UNPACK(packed) Loc(packed/100,(packed%100)/10,packed%10)
-#define HOLD_TIME 19
+#define HOLD_TIME 17
 
 byte rows[] = { 8, 7, 6, 5, 4};
 const int rowCount = sizeof(rows)/sizeof(rows[0]);
