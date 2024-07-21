@@ -13,7 +13,7 @@
 
 #define PACK(kbd,row,column) (kbd*100+row*10+column)
 #define UNPACK(packed) Loc(packed/100,(packed%100)/10,packed%10)
-#define HOLD_TIME 17
+#define HOLD_TIME 20
 
 byte rows[] = { 8, 7, 6, 5, 4};
 const int rowCount = sizeof(rows)/sizeof(rows[0]);
@@ -90,6 +90,8 @@ const byte ModeKeyLayer=4;
 const byte ModeLayer=5;
 const byte ModeLayerMod=6;
 const byte ModeLayerLayer=7;
+const byte ModeText=8;
+const byte ModeKeyText=9;
 
 struct Layer {
   byte layer;
@@ -107,12 +109,21 @@ struct Mod {
   }
 };
 
+struct Text {
+  byte id;
+  Text(){
+  }
+  Text(short id):id(id){
+  }
+};
+
 struct Key{
   byte mode;
   byte keycode;
   Mod mod;
   Layer layer;
   Layer layer_hold;
+  Text text;
   Key():mode(ModeNone){
   }
   Key( byte keycode)
@@ -135,6 +146,12 @@ struct Key{
   }
   Key( Layer layer, Layer layer_hold)
     :layer(layer),layer_hold(layer_hold),mode(ModeLayerLayer){
+  }
+  Key( Text text)
+    :text(text),mode(ModeText){
+  }
+  Key(byte keycode, Text text)
+    :text(text),keycode(keycode),mode(ModeKeyText){
   }
 };
 struct Loc{
@@ -229,6 +246,14 @@ void printLayer(byte layer){
     default: { LOG("Unknown Layer"); } break;
   }
 }
+char* texts[1] = {"->"};
+
+void printText(byte id){
+  LOG("\"");
+  LOG(texts[id]);
+  LOG("\"");
+}
+
 
 Key keyboard[CountLayer][2][rowCount][columnCount] = {
   {
@@ -252,7 +277,7 @@ Key keyboard[CountLayer][2][rowCount][columnCount] = {
       {K('='),       K('3'),      K('2'),   K('1'),    K(0)},
       {K(),       K('6'),      K('5'),     K('4'),      K('`')},
       {K(' ',L(Layer1)),   K('9'),      K('8'),     K('7'),      K()},
-      {K('.',M(KEY_LEFT_GUI)),    K('+'),      K('0'),     K('-'),      K()},
+      {K('.',M(KEY_LEFT_GUI)),    K('+'),      K('0'),     K('-',Text(0)),      K(Text(0))},
       {K('/',M(KEY_LEFT_SHIFT)),     K(',',M(KEY_LEFT_ALT)),  K(0),     K(0),      K(0)},
     },
     {
@@ -477,9 +502,25 @@ void pressKey(byte packedLoc, bool hold){
       printLayer(current_layer);
     }
   }
+  else if(key->mode == ModeText){
+    printText(key->text.id);
+
+    Keyboard.print(texts[key->text.id]);
+  }
+  else if(key->mode == ModeKeyText){
+    printKeycode(key->keycode);
+    LOG(", hold: ");
+    printText(key->text.id);
+
+    if(hold){
+      Keyboard.print(texts[key->text.id]);
+    }else{
+      Keyboard.press(key->keycode);
+    }
+  }
   LOGLN();
 }
-void releaseKey(byte packedLoc, bool hold){
+void releaseKey(byte packedLoc, bool hold, byte time){
   Loc loc = UNPACK(packedLoc);
   LOG("Release -> packed:");
   LOG(packedLoc);
@@ -491,6 +532,9 @@ void releaseKey(byte packedLoc, bool hold){
   LOG(loc.row);
   LOG(", Loc.column:");
   LOG(loc.column);
+  LOG(", time:");
+  LOG(time);
+  LOG(", ");
 
   byte key_layer = layerOfPressedKeys[loc.kbd][loc.row][loc.column];
   Key *key = &keyboard[key_layer][loc.kbd][loc.row][loc.column];
@@ -558,6 +602,15 @@ void releaseKey(byte packedLoc, bool hold){
       printLayer(current_layer);
     }
   }
+  else if(key->mode == ModeKeyText){
+    printKeycode(key->keycode);
+    LOG(", hold: ");
+    printText(key->text.id);
+
+    if(!hold){
+      Keyboard.release(key->keycode);
+    }
+  }
   LOGLN();
 }
 
@@ -570,11 +623,11 @@ inline bool processPressCurrent(){
   if(pkey->qindex!=queue_index){
     // already released
     pressKey(packedLoc, false);
-    releaseKey(packedLoc, false);
+    releaseKey(packedLoc, false,pkey->timePressed);
     return true;
   }
 
-  bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod || key->mode == ModeLayerLayer;
+  bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod || key->mode == ModeLayerLayer || key->mode == ModeKeyText;
   
   if(has_hold){
     if(pkey->timePressed>=HOLD_TIME){
@@ -628,8 +681,8 @@ void processKeyEvent(byte packedLoc,bool pressed){
       // how can i know if this was a hold?
       byte key_layer = layerOfPressedKeys[loc.kbd][loc.row][loc.column];
       Key* key = &keyboard[key_layer][loc.kbd][loc.row][loc.column];
-      bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod || key->mode == ModeLayerLayer;
-      releaseKey(packedLoc, has_hold);
+      bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod || key->mode == ModeLayerLayer || key->mode == ModeKeyText;
+      releaseKey(packedLoc, has_hold, keyp->timePressed);
     }
     keyp->release();
   }
