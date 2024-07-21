@@ -1,9 +1,19 @@
 #include <Keyboard.h> 
 #include <Wire.h>
 
+#define DEBUG
+
+#ifdef DEBUG
+#define LOG(x) Serial.print(x)
+#define LOGLN(x) Serial.println(x)
+#else
+#define LOG(x) 
+#define LOGLN(x) 
+#endif
+
 #define PACK(kbd,row,column) (kbd*100+row*10+column)
 #define UNPACK(packed) Loc(packed/100,(packed%100)/10,packed%10)
-#define HOLD_TIME 30
+#define HOLD_TIME 19
 
 byte rows[] = { 8, 7, 6, 5, 4};
 const int rowCount = sizeof(rows)/sizeof(rows[0]);
@@ -20,12 +30,12 @@ void setup()
   Serial.begin(9600);          // start serial for output
 
   for(int x=0; x<rowCount; x++) {
-		Serial.print(rows[x]); Serial.println(" as input");
+		LOG(rows[x]); LOGLN(" as input");
 		pinMode(rows[x], INPUT);
 	}
 
 	for (int x=0; x<columnCount; x++) {
-		Serial.print(columns[x]); Serial.println(" as input-pullup");
+		LOG(columns[x]); LOGLN(" as input-pullup");
 		pinMode(columns[x], INPUT_PULLUP);
 	}
 }
@@ -79,6 +89,7 @@ const byte ModeMod=3;
 const byte ModeKeyLayer=4;
 const byte ModeLayer=5;
 const byte ModeLayerMod=6;
+const byte ModeLayerLayer=7;
 
 struct Layer {
   byte layer;
@@ -101,6 +112,7 @@ struct Key{
   byte keycode;
   Mod mod;
   Layer layer;
+  Layer layer_hold;
   Key():mode(ModeNone){
   }
   Key( byte keycode)
@@ -119,7 +131,10 @@ struct Key{
     :layer(layer),mode(ModeLayer){
   }
   Key( Layer layer, Mod mod)
-    :layer(layer),mode(ModeLayerMod){
+    :layer(layer),mod(mod),mode(ModeLayerMod){
+  }
+  Key( Layer layer, Layer layer_hold)
+    :layer(layer),layer_hold(layer_hold),mode(ModeLayerLayer){
   }
 };
 struct Loc{
@@ -141,94 +156,94 @@ typedef Layer L;
 
 void printKeycode(byte keycode){
   switch(keycode){
-    case KEY_LEFT_CTRL: { Serial.print("Ctrl"); } break;
-    case KEY_LEFT_SHIFT: { Serial.print("Shift"); } break;
-    case KEY_LEFT_ALT: { Serial.print("Alt"); } break;
-    case KEY_LEFT_GUI: { Serial.print("Win"); } break;
-    case KEY_RIGHT_CTRL: { Serial.print("Ctrl"); } break;
-    case KEY_RIGHT_SHIFT: { Serial.print("Shift"); } break;
-    case KEY_RIGHT_ALT: { Serial.print("Alt"); } break;
-    case KEY_RIGHT_GUI: { Serial.print("Win"); } break;
-    case 'q': { Serial.print("q"); } break;
-    case 'w': { Serial.print("w"); } break;
-    case 'e': { Serial.print("e"); } break;
-    case 'r': { Serial.print("r"); } break;
-    case 't': { Serial.print("t"); } break;
-    case 'y': { Serial.print("y"); } break;
-    case 'u': { Serial.print("u"); } break;
-    case 'i': { Serial.print("i"); } break;
-    case 'o': { Serial.print("o"); } break;
-    case 'p': { Serial.print("p"); } break;
-    case 'a': { Serial.print("a"); } break;
-    case 's': { Serial.print("s"); } break;
-    case 'd': { Serial.print("d"); } break;
-    case 'f': { Serial.print("f"); } break;
-    case 'g': { Serial.print("g"); } break;
-    case 'h': { Serial.print("h"); } break;
-    case 'j': { Serial.print("j"); } break;
-    case 'k': { Serial.print("k"); } break;
-    case 'l': { Serial.print("l"); } break;
-    case 'z': { Serial.print("z"); } break;
-    case 'x': { Serial.print("x"); } break;
-    case 'c': { Serial.print("c"); } break;
-    case 'v': { Serial.print("v"); } break;
-    case 'b': { Serial.print("b"); } break;
-    case 'n': { Serial.print("n"); } break;
-    case 'm': { Serial.print("m"); } break;
-    case ' ': { Serial.print("Space"); } break;
-    case KEY_RETURN: { Serial.print("Enter"); } break;
-    case KEY_TAB: { Serial.print("Tab"); } break;
-    case KEY_ESC: { Serial.print("Esc"); } break;
-    case KEY_BACKSPACE: { Serial.print("Backspace"); } break;
-    case KEY_DELETE: { Serial.print("Delete"); } break;
-    case KEY_HOME: { Serial.print("Home"); } break;
-    case KEY_END: { Serial.print("End"); } break;
-    case KEY_PAGE_UP: { Serial.print("Page Up"); } break;
-    case KEY_PAGE_DOWN: { Serial.print("Page Down"); } break;
-    case KEY_UP_ARROW: { Serial.print("Up"); } break;
-    case KEY_DOWN_ARROW: { Serial.print("Down"); } break;
-    case KEY_LEFT_ARROW: { Serial.print("Left"); } break;
-    case KEY_RIGHT_ARROW: { Serial.print("Right"); } break;
-    case KEY_F1: { Serial.print("F1"); } break;
-    case KEY_F2: { Serial.print("F2"); } break;
-    case KEY_F3: { Serial.print("F3"); } break;
-    case KEY_F4: { Serial.print("F4"); } break;
-    case KEY_F5: { Serial.print("F5"); } break;
-    case KEY_F6: { Serial.print("F6"); } break;
-    case KEY_F7: { Serial.print("F7"); } break;
-    case KEY_F8: { Serial.print("F8"); } break;
-    case KEY_F9: { Serial.print("F9"); } break;
-    case KEY_F10: { Serial.print("F10"); } break;
-    case KEY_F11: { Serial.print("F11"); } break;
-    case KEY_F12: { Serial.print("F12"); } break;
-    default: { Serial.print("None"); } break;
+    case KEY_LEFT_CTRL: { LOG("Ctrl"); } break;
+    case KEY_LEFT_SHIFT: { LOG("Shift"); } break;
+    case KEY_LEFT_ALT: { LOG("Alt"); } break;
+    case KEY_LEFT_GUI: { LOG("Win"); } break;
+    case KEY_RIGHT_CTRL: { LOG("Ctrl"); } break;
+    case KEY_RIGHT_SHIFT: { LOG("Shift"); } break;
+    case KEY_RIGHT_ALT: { LOG("Alt"); } break;
+    case KEY_RIGHT_GUI: { LOG("Win"); } break;
+    case 'q': { LOG("q"); } break;
+    case 'w': { LOG("w"); } break;
+    case 'e': { LOG("e"); } break;
+    case 'r': { LOG("r"); } break;
+    case 't': { LOG("t"); } break;
+    case 'y': { LOG("y"); } break;
+    case 'u': { LOG("u"); } break;
+    case 'i': { LOG("i"); } break;
+    case 'o': { LOG("o"); } break;
+    case 'p': { LOG("p"); } break;
+    case 'a': { LOG("a"); } break;
+    case 's': { LOG("s"); } break;
+    case 'd': { LOG("d"); } break;
+    case 'f': { LOG("f"); } break;
+    case 'g': { LOG("g"); } break;
+    case 'h': { LOG("h"); } break;
+    case 'j': { LOG("j"); } break;
+    case 'k': { LOG("k"); } break;
+    case 'l': { LOG("l"); } break;
+    case 'z': { LOG("z"); } break;
+    case 'x': { LOG("x"); } break;
+    case 'c': { LOG("c"); } break;
+    case 'v': { LOG("v"); } break;
+    case 'b': { LOG("b"); } break;
+    case 'n': { LOG("n"); } break;
+    case 'm': { LOG("m"); } break;
+    case ' ': { LOG("Space"); } break;
+    case KEY_RETURN: { LOG("Enter"); } break;
+    case KEY_TAB: { LOG("Tab"); } break;
+    case KEY_ESC: { LOG("Esc"); } break;
+    case KEY_BACKSPACE: { LOG("Backspace"); } break;
+    case KEY_DELETE: { LOG("Delete"); } break;
+    case KEY_HOME: { LOG("Home"); } break;
+    case KEY_END: { LOG("End"); } break;
+    case KEY_PAGE_UP: { LOG("Page Up"); } break;
+    case KEY_PAGE_DOWN: { LOG("Page Down"); } break;
+    case KEY_UP_ARROW: { LOG("Up"); } break;
+    case KEY_DOWN_ARROW: { LOG("Down"); } break;
+    case KEY_LEFT_ARROW: { LOG("Left"); } break;
+    case KEY_RIGHT_ARROW: { LOG("Right"); } break;
+    case KEY_F1: { LOG("F1"); } break;
+    case KEY_F2: { LOG("F2"); } break;
+    case KEY_F3: { LOG("F3"); } break;
+    case KEY_F4: { LOG("F4"); } break;
+    case KEY_F5: { LOG("F5"); } break;
+    case KEY_F6: { LOG("F6"); } break;
+    case KEY_F7: { LOG("F7"); } break;
+    case KEY_F8: { LOG("F8"); } break;
+    case KEY_F9: { LOG("F9"); } break;
+    case KEY_F10: { LOG("F10"); } break;
+    case KEY_F11: { LOG("F11"); } break;
+    case KEY_F12: { LOG("F12"); } break;
+    default: { LOG("None"); } break;
   }
 }
 
 void printLayer(byte layer){
   switch(layer){
-    case Layer0: { Serial.print("Layer0"); } break;
-    case Layer1: { Serial.print("Layer1"); } break;
-    case Layer2:{ Serial.print("Layer2"); } break;
-    case Layer3: { Serial.print("Layer3"); } break;
-    default: { Serial.print("Unknown Layer"); } break;
+    case Layer0: { LOG("Layer0"); } break;
+    case Layer1: { LOG("Layer1"); } break;
+    case Layer2:{ LOG("Layer2"); } break;
+    case Layer3: { LOG("Layer3"); } break;
+    default: { LOG("Unknown Layer"); } break;
   }
 }
 
 Key keyboard[CountLayer][2][rowCount][columnCount] = {
   {
     {// normal characters
-      {K('t'),       K('r'),      K(KEY_TAB),   K('q'),    K(0)},
-      {K(' '),       K('g'),      K('e'),     K('w'),      K('a')},
-      {K(' ',L(Layer1)),   K('f'),      K('d'),     K('s'),      K(KEY_ESC,L(Layer2))},
+      {K('t'),       K('e'),      K('w'),   K('q'),    K(0)},
+      {K(' '),       K('d'),      K('s'),     K('a'),      K(KEY_TAB)},
+      {K(' ',L(Layer1)),   K('g'),      K('f'),     K('r'),      K(KEY_ESC,L(Layer2))},
       {K('.',M(KEY_LEFT_GUI)),    K('v'),      K('c'),     K('x'),      K('z')},
       {K('/',M(KEY_LEFT_SHIFT)),     K(',',M(KEY_LEFT_ALT)),  K(0),     K(0),      K(0)},
     },
     {
-      {K('y'),     K('u'),      K(L(Layer1)),   K(L(Layer0)),    K(0)},
+      {K('y'),     K('u'),      K('\''),   K(';'),    K(0)},
       {K(KEY_RETURN),     K('h'),      K('i'),     K('o'),      K('p')},
-      {K(KEY_RETURN,L(Layer1)), K('j'),      K('k'),     K('l'),      K(';',L(Layer2))},
-      {K('[',M(KEY_RIGHT_CTRL)),  K('b'),      K('n'),     K('m'),      K('\'')},
+      {K(KEY_RETURN,L(Layer1)), K('j'),      K('k'),     K('l'),      K(L(Layer1),L(Layer2))},
+      {K('[',M(KEY_RIGHT_CTRL)),  K('b'),      K('n'),     K('m'),      K(L(Layer0))},
       {K('\\',M(KEY_RIGHT_ALT)),   K(']',M(KEY_RIGHT_SHIFT)),  K(0),     K(0),      K(0)},
     },
   },
@@ -241,10 +256,10 @@ Key keyboard[CountLayer][2][rowCount][columnCount] = {
       {K('/',M(KEY_LEFT_SHIFT)),     K(',',M(KEY_LEFT_ALT)),  K(0),     K(0),      K(0)},
     },
     {
-      {K('_'),       K('!'),      K(L(Layer2)),   K(L(Layer0)),    K(0)},
-      {K(),       K('$'),      K('@'),     K('#'),      K('~')},
-      {K(KEY_RETURN,L(Layer1)),    K('&'),      K('%'),     K('^'),      K()},
-      {K('[',M(KEY_RIGHT_CTRL)),    K('*'),      K('('),     K(')'),      K()},
+      {K('_'),       K('!'),      K('~'),   K(),    K(0)},
+      {K(),       K('$'),      K('@'),     K('#'),      K()},
+      {K(KEY_RETURN,L(Layer1)),    K('&'),      K('%'),     K('^'),      K(L(Layer2))},
+      {K('[',M(KEY_RIGHT_CTRL)),    K('*'),      K('('),     K(')'),      K(L(Layer0))},
       {K('\\',M(KEY_RIGHT_ALT)),   K(']',M(KEY_RIGHT_SHIFT)),  K(0),     K(0),      K(0)},
     },
   },
@@ -257,10 +272,10 @@ Key keyboard[CountLayer][2][rowCount][columnCount] = {
       {K(KEY_HOME),     K(),  K(0),     K(0),      K(0)},
     },
     {
-      {K(),       K(),      K(L(Layer2)),   K(L(Layer0)),    K(0)},
+      {K(),       K(),      K(),   K(),    K(0)},
       {K(),       K(KEY_LEFT_ARROW),      K(KEY_UP_ARROW),     K(KEY_RIGHT_ARROW),      K()},
-      {K(KEY_DELETE),   K(),      K(KEY_DOWN_ARROW),     K(),      K()},
-      {K(KEY_PAGE_DOWN),    K(),      K(),     K(),      K()},
+      {K(KEY_DELETE),   K(),      K(KEY_DOWN_ARROW),     K(),      K(L(Layer2))},
+      {K(KEY_PAGE_DOWN),    K(),      K(),     K(),      K(L(Layer0))},
       {K(KEY_PAGE_UP),     K(),  K(0),     K(0),      K(0)},
     },
   }
@@ -282,7 +297,7 @@ unsigned int addToPressQueue(byte packedLoc){
 inline void resetQueue(){
   queue_index = 1;
   queue_last = 1;
-  Serial.println("ResetQueue");
+  LOGLN("ResetQueue");
 }
 
 struct PressedKey{
@@ -352,29 +367,46 @@ PressedKey pressedKeys[2][rowCount][columnCount] = {
 };
 
 byte current_layer = Layer0;
-byte prev_layer = Layer0;
 
+byte layerOfPressedKeys[2][rowCount][columnCount] = {
+    {
+      {Layer0,       Layer0,      Layer0,   Layer0,    Layer0},
+      {Layer0,       Layer0,      Layer0,     Layer0,      Layer0},
+      {Layer0,   Layer0,      Layer0,     Layer0,      Layer0},
+      {Layer0,    Layer0,      Layer0,     Layer0,      Layer0},
+      {Layer0,     Layer0,  Layer0,     Layer0,      Layer0},
+    },
+    {
+      {Layer0,     Layer0,      Layer0,   Layer0,    Layer0},
+      {Layer0,     Layer0,      Layer0,     Layer0,      Layer0},
+      {Layer0, Layer0,      Layer0,     Layer0,      Layer0},
+      {Layer0,  Layer0,      Layer0,     Layer0,      Layer0},
+      {Layer0,   Layer0,  Layer0,     Layer0,      Layer0},
+    },
+};
 
 void pressKey(byte packedLoc, bool hold){
   Loc loc = UNPACK(packedLoc);
-  Serial.print("Press -> packed:");
-  Serial.print(packedLoc);
-  Serial.print(", hold:");
-  Serial.print(hold);
-  Serial.print(", Loc.kbd:");
-  Serial.print(loc.kbd);
-  Serial.print(", Loc.row:");
-  Serial.print(loc.row);
-  Serial.print(", Loc.column:");
-  Serial.print(loc.column);
+  LOG("Press -> packed:");
+  LOG(packedLoc);
+  LOG(", hold:");
+  LOG(hold);
+  LOG(", Loc.kbd:");
+  LOG(loc.kbd);
+  LOG(", Loc.row:");
+  LOG(loc.row);
+  LOG(", Loc.column:");
+  LOG(loc.column);
 
   Key *key = &keyboard[current_layer][loc.kbd][loc.row][loc.column];
   
-  Serial.print(key->mode);
-  Serial.print(": ");
+  LOG(key->mode);
+  LOG(": ");
+
+  layerOfPressedKeys[loc.kbd][loc.row][loc.column] = current_layer;
 
   if(key->mode == ModeNone){
-    Serial.print("None");
+    LOG("None");
   }
   else if(key->mode == ModeKey){
     printKeycode(key->keycode);
@@ -383,7 +415,7 @@ void pressKey(byte packedLoc, bool hold){
   }
   else if(key->mode == ModeKeyMod){
     printKeycode(key->keycode);
-    Serial.print(", hold: ");
+    LOG(", hold: ");
     printKeycode(key->mod.keycode);
 
     if(hold){
@@ -399,12 +431,13 @@ void pressKey(byte packedLoc, bool hold){
   }
   else if(key->mode == ModeKeyLayer){
     printKeycode(key->keycode);
-    Serial.print(", hold: ");
+    LOG(", hold: ");
     printLayer(key->layer.layer);
 
     if(hold){
-      prev_layer = current_layer;
       current_layer = key->layer.layer;
+      LOG(", layer: ");
+      printLayer(current_layer);
     }else{
       Keyboard.press(key->keycode);
     }
@@ -413,41 +446,60 @@ void pressKey(byte packedLoc, bool hold){
     printLayer(key->layer.layer);
 
     current_layer = key->layer.layer;
+    LOG(", layer: ");
+    printLayer(current_layer);
   }
   else if(key->mode == ModeLayerMod){
     printLayer(key->layer.layer);
-    Serial.print(", hold: ");
+    LOG(", hold: ");
     printKeycode(key->mod.keycode);
 
     if(hold){
       Keyboard.press(key->mod.keycode);
     }else{
-      prev_layer = current_layer;
       current_layer = key->layer.layer;
+      LOG(", layer: ");
+      printLayer(current_layer);
     }
   }
-  Serial.println();
+  else if(key->mode == ModeLayerLayer){
+    printLayer(key->layer.layer);
+    LOG(", hold: ");
+    printLayer(key->layer_hold.layer);
+
+    if(hold){
+      current_layer = key->layer_hold.layer;
+      LOG(", layer: ");
+      printLayer(current_layer);
+    }else{
+      current_layer = key->layer.layer;
+      LOG(", layer: ");
+      printLayer(current_layer);
+    }
+  }
+  LOGLN();
 }
 void releaseKey(byte packedLoc, bool hold){
   Loc loc = UNPACK(packedLoc);
-  Serial.print("Release -> packed:");
-  Serial.print(packedLoc);
-  Serial.print(", hold:");
-  Serial.print(hold);
-  Serial.print(", Loc.kbd:");
-  Serial.print(loc.kbd);
-  Serial.print(", Loc.row:");
-  Serial.print(loc.row);
-  Serial.print(", Loc.column:");
-  Serial.print(loc.column);
+  LOG("Release -> packed:");
+  LOG(packedLoc);
+  LOG(", hold:");
+  LOG(hold);
+  LOG(", Loc.kbd:");
+  LOG(loc.kbd);
+  LOG(", Loc.row:");
+  LOG(loc.row);
+  LOG(", Loc.column:");
+  LOG(loc.column);
 
-  Key *key = &keyboard[current_layer][loc.kbd][loc.row][loc.column];
+  byte key_layer = layerOfPressedKeys[loc.kbd][loc.row][loc.column];
+  Key *key = &keyboard[key_layer][loc.kbd][loc.row][loc.column];
   
-  Serial.print(key->mode);
-  Serial.print(": ");
+  LOG(key->mode);
+  LOG(": ");
 
   if(key->mode == ModeNone){
-    Serial.print("None");
+    LOG("None");
   }
   else if(key->mode == ModeKey){
     printKeycode(key->keycode);
@@ -456,7 +508,7 @@ void releaseKey(byte packedLoc, bool hold){
   }
   else if(key->mode == ModeKeyMod){
     printKeycode(key->keycode);
-    Serial.print(", hold: ");
+    LOG(", hold: ");
     printKeycode(key->mod.keycode);
 
     if(hold){
@@ -472,11 +524,14 @@ void releaseKey(byte packedLoc, bool hold){
   }
   else if(key->mode == ModeKeyLayer){
     printKeycode(key->keycode);
-    Serial.print(", hold: ");
+    LOG(", hold: ");
     printLayer(key->layer.layer);
 
     if(hold){
-      current_layer = prev_layer;
+      current_layer = key_layer;
+      LOG(", layer: ");
+      printLayer(current_layer);
+
     }else{
       Keyboard.release(key->keycode);
     }
@@ -486,13 +541,24 @@ void releaseKey(byte packedLoc, bool hold){
   }
   else if(key->mode == ModeLayerMod){
     printLayer(key->layer.layer);
-    Serial.print(", hold: ");
+    LOG(", hold: ");
     printKeycode(key->mod.keycode);
     if(hold){
       Keyboard.release(key->mod.keycode);
     }
   }
-  Serial.println();
+  else if(key->mode == ModeLayerLayer){
+    printLayer(key->layer.layer);
+    LOG(", hold: ");
+    printLayer(key->layer_hold.layer);
+
+    if(hold){
+      current_layer = key_layer;
+      LOG(", layer: ");
+      printLayer(current_layer);
+    }
+  }
+  LOGLN();
 }
 
 inline bool processPressCurrent(){
@@ -508,7 +574,7 @@ inline bool processPressCurrent(){
     return true;
   }
 
-  bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod;
+  bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod || key->mode == ModeLayerLayer;
   
   if(has_hold){
     if(pkey->timePressed>=HOLD_TIME){
@@ -545,23 +611,24 @@ void processKeyEvent(byte packedLoc,bool pressed){
   PressedKey* keyp = &pressedKeys[loc.kbd][loc.row][loc.column];
 
   if(pressed){
-    Serial.print("Press ");
-    Serial.print(packedLoc);
-    Serial.println("");
+    LOG("Press ");
+    LOG(packedLoc);
+    LOGLN("");
 
     unsigned int qi = addToPressQueue(packedLoc);
     keyp->press(0,qi);
   }
   else{
-    Serial.print("Release \"");
-    Serial.print(packedLoc);
-    Serial.println("\"");
+    LOG("Release \"");
+    LOG(packedLoc);
+    LOGLN("\"");
 
     // if already processed by pressQueue release key
     if(keyp->qindex < queue_index){
       // how can i know if this was a hold?
-      Key* key = &keyboard[current_layer][loc.kbd][loc.row][loc.column];
-      bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod;
+      byte key_layer = layerOfPressedKeys[loc.kbd][loc.row][loc.column];
+      Key* key = &keyboard[key_layer][loc.kbd][loc.row][loc.column];
+      bool has_hold = key->mode == ModeKeyMod || key->mode == ModeKeyLayer || key->mode == ModeLayerMod || key->mode == ModeLayerLayer;
       releaseKey(packedLoc, has_hold);
     }
     keyp->release();
