@@ -98,17 +98,12 @@ The next thing I wanted to do was replace the old arduino with the new Pro Micro
 ![removing arduino](./photos/20240718_104218.jpg)
 
 -- TODO: before removing it show the layout
+Before removing it I needed to understand the layout of the key matrix. And what was a bit harder I needed to understand how the second arduino was comunicating with the first since I had lost the code I used to program them. It was a particularly satisfying solve. 
 
--- TODO: how i removed it (write down the connections)
+### Writting the code 
+Then all that was left was writting the new keyboard code. I got lucky that the second arduiono contained all the metadata about keypresses that i needed so i didnt have to take it out and reprogram it aswell. And that was it.
 
--- TODO: problem of not knowing the code of the arduino (is it slave or master, what address is it sending it to
-
--- TODO: Making a scraper for addresses
-
--- TODO: finding the address 
-
--- TODO: writting the new keyboard code 
-
+![final keyboard](./photos/keyboard.jpg)
 
 
 
