@@ -103,8 +103,3 @@ Before removing it I needed to understand the layout of the key matrix. And what
 Then all that was left was writting the new keyboard code. I got lucky that the second arduiono contained all the metadata about keypresses that i needed so i didnt have to take it out and reprogram it aswell. And that was it.
 
 ![final keyboard](./photos/keyboard.jpg)
-
-
-
-
-
